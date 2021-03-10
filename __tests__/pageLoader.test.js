@@ -1,42 +1,35 @@
 import nock from 'nock';
 import path from 'path';
 import fs from 'fs/promises';
+import os from 'os'
 
-import pageLoader from '../src/pageLoader';
-import { async } from 'regenerator-runtime';
+import pageLoader from '../src/';
+import { beforeEach } from '@jest/globals';
+// import { async } from 'regenerator-runtime';
 
 nock.disableNetConnect();
 
 const fixturesPath = path.join(__dirname, '__fixtures__');
-let testPageContent;
+const baseUrl = 'http://ru.test.com';
+let tmpDir;
 
-const url = 'http://ru.test.com';
-const expectedPageName = 'ru-test-com-hexlet.html';
-
-beforeAll(async () => {
-  try {
-    await fs.unlink(path.join(fixturesPath, '..', expectedPageName));
-  } finally {
-    testPageContent = await fs.readFile(path.join(fixturesPath, 'index.html'), 'utf-8');
-  }
-});
-
-nock(url)
-  .get('/hexlet')
-  .reply(200, testPageContent);
-
-// beforeEach(() => {
-//   document.documentElement.innerHTML = initHtml;
-//   run();
-//   form = document.querySelector('#rssAddForm');
-//   input = form.elements.link;
-// });
+beforeEach(async () => {
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'page-loader-'));
+})
 
 test('Page loader', async () => {
-  const pageName = await pageLoader(url + '/hexlet');
-  expect(pageName).toBe(expectedPageName);
+  const testPageContent = await fs.readFile(path.join(fixturesPath, 'index.html'), 'utf-8');
+  nock(baseUrl)
+    .get('/hexlet')
+    .reply(200, testPageContent);
 
-  const savedPageContent = await fs.readFile(path.join(fixturesPath, '..', pageName), 'utf-8');
+  const testUrl1 = baseUrl + '/hexlet';
+
+  const pageName = await pageLoader(testUrl1, tmpDir);
+  const savedPagePath = path.join(tmpDir, 'ru-test-com-hexlet.html');
+  expect(pageName).toBe(savedPagePath);
+
+  const savedPageContent = await fs.readFile(savedPagePath, 'utf-8');
   expect(savedPageContent).toBe(testPageContent);
 });
 
